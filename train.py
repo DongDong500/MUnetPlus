@@ -1,5 +1,5 @@
 
 
-def train(opts):
+def train(devices=None, opts=None):
 
     ...

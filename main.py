@@ -7,14 +7,14 @@ from datetime import datetime
 import timeit
 import socket
 import glob
-
+'''
 import utils
 import network
 from datasets import CPNSegmentation
 from metrics import StreamSegMetrics
 from utils import ext_transforms as et
 from utils.dice_score import dice_loss
-
+'''
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -111,11 +111,12 @@ def get_argparser():
 
 def saveSummary(opts):
     
-    with open(os.path.join(opts.Tlog_dir, opts.model, 
-                    opts.current_time + '_' + socket.gethostname(), 'summary.txt'), 'w') as f:
-            for k, v in vars(opts).items():
-                f.write("{}={}\n".format(k, v))
-            
+    logdir = os.path.join(opts.Tlog_dir, opts.model, opts.current_time + '_' + socket.gethostname())
+
+    with open(os.path.join(logdir, 'summary.txt'), 'w') as f:
+        for k, v in vars(opts).items():
+            f.write("{}={}\n".format(k, v))
+        f.write("End Time={}".format(datetime.now().strftime('%b%d_%H-%M-%S')))
 
 if __name__ == '__main__':
 
@@ -131,26 +132,24 @@ if __name__ == '__main__':
     np.random.seed(opts.random_seed)
     random.seed(opts.random_seed)
 
-    elapsed_times = []
+    start_time = datetime.now()
     try:
         for loss_name in ['entropy_dice_loss', 'cross_entropy', 'dice_loss', 'focal_loss']:
             for lr in [5e-2, 5e-3, 5e-4, 5e-5, 5e-6, 5e-7]:
-
+                
+                opts.current_time = datetime.now().strftime('%b%d_%H-%M-%S')
                 opts.loss_type = loss_name
+
                 if loss_name == 'focal_loss':
                     opts.lr = lr*1e+4
                 elif loss_name == 'entropy_dice_loss':
                     opts.lr = lr*1e-3
                 else:
                     opts.lr = lr
-
-                opts.current_time = datetime.now().strftime('%b%d_%H-%M-%S')
-                start_time = datetime.now()
                 train(devices=device, opts=opts)
-                time_elapsed = datetime.now() - start_time
-                print('Time elapsed (h:m:s.ms) {}'.format(time_elapsed))
-                elapsed_times.append(time_elapsed)
+                saveSummary(opts)
     except KeyboardInterrupt:
         print("Stop !!!")
-    
-    print(elapsed_times)
+
+    time_elapsed = datetime.now() - start_time
+    print('Time elapsed (h:m:s.ms) {}'.format(time_elapsed.strftime('%b%d_%H-%M-%S')))
