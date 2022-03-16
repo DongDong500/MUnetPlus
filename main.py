@@ -27,6 +27,7 @@ import numpy as np
 from tqdm import tqdm
 from PIL import Image
 
+from train import train
 
 def get_argparser():
     parser = argparse.ArgumentParser()
@@ -108,6 +109,13 @@ def get_argparser():
 
     return parser
 
+def saveSummary(opts):
+    
+    with open(os.path.join(opts.Tlog_dir, opts.model, 
+                    opts.current_time + '_' + socket.gethostname(), 'summary.txt'), 'w') as f:
+            for k, v in vars(opts).items():
+                f.write("{}={}\n".format(k, v))
+            
 
 if __name__ == '__main__':
 
@@ -128,12 +136,6 @@ if __name__ == '__main__':
         for loss_name in ['entropy_dice_loss', 'cross_entropy', 'dice_loss', 'focal_loss']:
             for lr in [5e-2, 5e-3, 5e-4, 5e-5, 5e-6, 5e-7]:
 
-                try:
-                    print("Model Selection: {}".format(opts.model))
-                    net = network.modeling.__dict__[opts.model](channel=3, num_classes=2)
-                except:
-                    raise Exception
-
                 opts.loss_type = loss_name
                 if loss_name == 'focal_loss':
                     opts.lr = lr*1e+4
@@ -141,9 +143,10 @@ if __name__ == '__main__':
                     opts.lr = lr*1e-3
                 else:
                     opts.lr = lr
+
                 opts.current_time = datetime.now().strftime('%b%d_%H-%M-%S')
                 start_time = datetime.now()
-                train(model=net, devices=device, opts=opts)
+                train(devices=device, opts=opts)
                 time_elapsed = datetime.now() - start_time
                 print('Time elapsed (h:m:s.ms) {}'.format(time_elapsed))
                 elapsed_times.append(time_elapsed)
