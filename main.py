@@ -56,7 +56,7 @@ def get_argparser():
     parser.add_argument("--total_itrs", type=int, default=30000,
                         help="epoch number (default: 30k)")
     parser.add_argument("--lr", type=float, default=1e-1,
-                        help="learning rate (default: 1e-1)")
+                        help="learning rate (default: 1e-1)") 
     parser.add_argument("--loss_type", type=str, default='cross_entropy',
                         choices=['cross_entropy', 'focal_loss', 'entropy_dice_loss', 'dice_loss'], 
                         help="loss type")
