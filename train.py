@@ -144,15 +144,15 @@ def train(devices=None, opts=None):
         raise NotImplementedError
     elif opts.lr_policy == 'step':
         scheduler = optim.lr_scheduler.StepLR(optimizer=optimizer, 
-                                                step_size=opts.step_size,
-                                                gamma=0.1)
+                                                step_size=opts.step_size, gamma=0.1)
     else:
         raise NotImplementedError
 
     ''' (5) Set up metrics
     '''
     metrics = StreamSegMetrics(opts.num_classes)
-    early_stopping = utils.EarlyStopping(patience=40, verbose=True, path=opts.save_ckpt, save_model=opts.save_model)
+    early_stopping = utils.EarlyStopping(patience=40, verbose=True, 
+                                            path=opts.save_ckpt, save_model=opts.save_model)
     best_score = 0.0
 
     ''' (6) Train
