@@ -17,16 +17,10 @@ from PIL import Image
 
 import utils
 import network
-#from datasets import CPNSegmentation
+from datasets import CPNSegmentation
 from metrics import StreamSegMetrics
 from utils import ext_transforms as et
 
-'''
-
-
-
-from utils.dice_score import dice_loss
-'''
 
 def get_dataset(opts):
     if opts.is_rgb:
@@ -43,6 +37,16 @@ def get_dataset(opts):
         ])
     else:
         ...
+
+    if opts.dataset == "CPN":
+        train_dst = CPNSegmentation(root=opts.data_root, datatype='CPN', image_set='train',
+                                     transform=train_transform, is_rgb=False)
+        val_dst = CPNSegmentation(root=opts.data_root, datatype='CPN', image_set='val',
+                                  transform=val_transform, is_rgb=False)
+    else:
+        ...
+    
+    return train_dst, val_dst
 
 def validate():
     ...
