@@ -15,12 +15,15 @@ from tqdm import tqdm
 
 from PIL import Image
 
-import network
-from utils import ext_transforms as et
-'''
 import utils
-from datasets import CPNSegmentation
+import network
+#from datasets import CPNSegmentation
 from metrics import StreamSegMetrics
+from utils import ext_transforms as et
+
+'''
+
+
 
 from utils.dice_score import dice_loss
 '''
