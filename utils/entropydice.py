@@ -1,6 +1,8 @@
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
+from torch.nn.modules.loss import _WeightedLoss
+
+from typing import Optional
 
 
 def dice_coeff(input: torch.Tensor, target: torch.Tensor, reduce_batch_first: bool = False, epsilon=1e-6):
@@ -32,19 +34,33 @@ def multiclass_dice_coeff(input: torch.Tensor, target: torch.Tensor, reduce_batc
 
     return dice / input.shape[1]
 
-class DiceLoss(nn.Module):
 
-    def __init__(self, multiclass: bool = True, num_classes: int = 2):
-        super().__init__()
+class EntropyDiceLoss(_WeightedLoss):
+
+    __constants__ = ['ignore_index', 'reduction', 'label_smoothing']
+    ignore_index: int
+    label_smoothing: float
+
+    def __init__(self, weight: Optional[torch.Tensor] = None, size_average=None, ignore_index: int = -100,
+                 reduce=None, reduction: str = 'mean', label_smoothing: float = 0.0 , 
+                 multiclass: bool = True, num_classes: int = 2) -> None:
+        super(EntropyDiceLoss, self).__init__(weight, size_average, reduce, reduction)
+        self.ignore_index = ignore_index
+        self.label_smoothing = label_smoothing
         self.multiclass = multiclass
         self.num_classes = num_classes
-    
-    def forward(self, input: torch.Tensor, target: torch.Tensor):
-        
+
+    def forward(self, input: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+
+        ce = F.cross_entropy(input, target, weight=self.weight,
+                               ignore_index=self.ignore_index, reduction=self.reduction,
+                               label_smoothing=self.label_smoothing)
         input = F.softmax(input, dim=1).float()
         target = F.one_hot(target, self.num_classes).permute(0, 3, 1, 2).float()
 
         assert input.size() == target.size()
         fn = multiclass_dice_coeff if self.multiclass else dice_coeff
-        return 1 - fn(input, target, reduce_batch_first=True)
+        dl = 1 - fn(input, target, reduce_batch_first=True)
+
+        return ce + dl
 

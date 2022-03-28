@@ -17,7 +17,7 @@ from PIL import Image
 
 import utils
 import network
-from datasets import CPNSegmentation
+import datasets as dt
 from metrics import StreamSegMetrics
 from utils import ext_transforms as et
 
@@ -36,15 +36,15 @@ def get_dataset(opts):
             et.ExtNormalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
     else:
-        ...
+        raise NotImplementedError
 
     if opts.dataset == "CPN":
-        train_dst = CPNSegmentation(root=opts.data_root, datatype='CPN', image_set='train',
+        train_dst = dt.CPNSegmentation(root=opts.data_root, datatype='CPN', image_set='train',
                                      transform=train_transform, is_rgb=False)
-        val_dst = CPNSegmentation(root=opts.data_root, datatype='CPN', image_set='val',
+        val_dst = dt.CPNSegmentation(root=opts.data_root, datatype='CPN', image_set='val',
                                   transform=val_transform, is_rgb=False)
     else:
-        ...
+        raise NotImplementedError
     
     return train_dst, val_dst
 
@@ -124,7 +124,7 @@ def train(devices=None, opts=None):
     ''' (3) Set up criterion
     '''
     if opts.loss_type == 'cross_entropy':
-        criterion = nn.CrossEntropyLoss(weight=torch.tensor([0.02, 0.98]).to(devices))
+        criterion = utils.CrossEntropyLoss(weight=torch.tensor([0.02, 0.98]).to(devices))
     elif opts.loss_type == 'focal_loss':
         criterion = utils.FocalLoss(gamma=2, alpha=torch.tensor([0.02, 0.98]).to(devices))
     elif opts.loss_type == 'dice_loss':
