@@ -48,11 +48,43 @@ def get_dataset(opts):
     
     return train_dst, val_dst
 
-def validate():
-    ...
 
-def save_validate_results():
-    ...
+def validate(opts, model, loader, device, metrics, epoch, criterion):
+
+    metrics.reset()
+    ret_samples = []
+
+    running_loss = 0.0
+    with torch.no_grad():
+        for i, (images, labels) in tqdm(enumerate(loader)):
+            images = images.to(device, dtype=torch.float32)
+            labels = labels.to(device, dtype=torch.long)
+
+            outputs = model(images)
+            probs = nn.Softmax(dim=1)(outputs)
+            preds = torch.max(probs, 1)[1].detach().cpu().numpy()
+            target = labels.detach().cpu().numpy()
+            
+            metrics.update(target, preds)
+            loss = criterion(outputs, labels)
+            running_loss += loss.item() * images.size(0)
+
+        if opts.save_val_results:
+            for i, (images, labels) in tqdm(enumerate(loader)):
+                images = images.to(device, dtype=torch.float32)
+                labels = labels.to(device, dtype=torch.long)
+                outputs = model(images)
+                probs = nn.Softmax(dim=1)(outputs)
+                preds = torch.max(probs, 1)[1].detach().cpu().numpy()
+                target = labels.detach().cpu().numpy()
+                
+
+
+    epoch_loss = running_loss / len(loader.dataset)
+    score = metrics.get_results()
+
+    return score, epoch_loss  
+
 
 def train(devices=None, opts=None):
 
