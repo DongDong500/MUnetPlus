@@ -49,6 +49,41 @@ def get_dataset(opts):
     return train_dst, val_dst
 
 
+def save_val_image(opts, model, loader, device, epoch):
+
+    if not os.path.exists(os.path.join(opts.save_val_dir, 'epoch_{}'.format(epoch))):
+        try:
+            os.mkdir(os.path.join(opts.save_val_dir, 'epoch_{}'.format(epoch)))
+        except:
+            raise Exception
+    save_dir = os.path.join(os.path.join(opts.save_val_dir, 'epoch_{}'.format(epoch)))
+
+    if opts.is_rgb:
+        denorm = utils.Denormalize(mean=[0.485, 0.456, 0.406],
+                                    std=[0.229, 0.224, 0.225])
+    else:
+        raise NotImplementedError
+
+    for i, (images, labels) in tqdm(enumerate(loader)):
+        images = images.to(device, dtype=torch.float32)
+        labels = labels.to(device, dtype=torch.long)
+        outputs = model(images)
+        probs = nn.Softmax(dim=1)(outputs)
+        preds = torch.max(probs, 1)[1].detach().cpu().numpy()
+        target = labels.detach().cpu().numpy()
+
+        image = images.detach().cpu().numpy()
+        lbl = labels.detach().cpu().numpy()
+
+        for j in range(images.shape[0]):
+            tar1 = (denorm(image[i]) * 255).transpose(1, 2, 0).astype(np.uint8)
+            tar2 = (lbl[i] * 255).astype(np.uint8)
+            tar3 = (preds[i] * 255).astype(np.uint8)
+            Image.fromarray(tar1).save(os.path.join(save_dir, '{}_image.png'.format(i*images.shape[0] + j)))
+            Image.fromarray(tar2).save(os.path.join(save_dir, '{}_mask.png'.format(i*images.shape[0] + j)))
+            Image.fromarray(tar3).save(os.path.join(save_dir, '{}_preds.png'.format(i*images.shape[0] + j)))
+    
+
 def validate(opts, model, loader, device, metrics, epoch, criterion):
 
     metrics.reset()
@@ -68,17 +103,9 @@ def validate(opts, model, loader, device, metrics, epoch, criterion):
             metrics.update(target, preds)
             loss = criterion(outputs, labels)
             running_loss += loss.item() * images.size(0)
-
+            
         if opts.save_val_results:
-            for i, (images, labels) in tqdm(enumerate(loader)):
-                images = images.to(device, dtype=torch.float32)
-                labels = labels.to(device, dtype=torch.long)
-                outputs = model(images)
-                probs = nn.Softmax(dim=1)(outputs)
-                preds = torch.max(probs, 1)[1].detach().cpu().numpy()
-                target = labels.detach().cpu().numpy()
-                
-
+            save_val_image(opts, model, loader, device, epoch)
 
     epoch_loss = running_loss / len(loader.dataset)
     score = metrics.get_results()
@@ -260,6 +287,8 @@ def train(devices=None, opts=None):
         
         if early_stopping.early_stop:
             print("Early Stop !!!")
+            if opts.save_val_results:
+                save_val_image(opts, model, val_loader, devices, epoch)
             break
 
 
