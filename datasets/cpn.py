@@ -7,7 +7,16 @@ import shutil
 import numpy as np
 
 from PIL import Image
-from splits import splits
+#from .splits import split_dataset
+'''
+if __package__ is None:
+    print(os.path.dirname( os.path.dirname( os.path.abspath(__file__) ) ))
+    sys.path.append(os.path.dirname( os.path.dirname( os.path.abspath(__file__) ) ))
+    from splits import split_dataset
+else:
+    print(os.path.dirname( os.path.dirname( os.path.abspath(__file__) ) ))
+    from .splits import split_dataset
+'''
 
 def voc_cmap(N=256, normalized=False):
     def bitget(byteval, idx):
@@ -66,7 +75,7 @@ class CPNSegmentation(data.Dataset):
             split_f = os.path.join(splits_dir, image_set.rstrip('\n') + '.txt')
 
         if not os.path.exists(splits_dir):
-            splits(splits_dir=splits_dir, data_dir=image_dir)
+            split_dataset(splits_dir=splits_dir, data_dir=image_dir)
 
         if not os.path.exists(split_f):
             raise ValueError('Wrong image_set entered!' 
@@ -96,7 +105,7 @@ class CPNSegmentation(data.Dataset):
         
         if self.is_rgb:
             img = Image.open(self.images[index]).convert('RGB')
-            target = Image.open(self.masks[index]).convert('L')            
+            target = Image.open(self.masks[index]).convert('L')         
         else:
             img = Image.open(self.images[index]).convert('L')
             target = Image.open(self.masks[index]).convert('L')            
@@ -115,3 +124,30 @@ class CPNSegmentation(data.Dataset):
         """decode semantic mask to RGB image"""
         return cls.cmap[mask]
 
+if __name__ == "__main__":
+
+    print(os.path.dirname( os.path.dirname( os.path.abspath(__file__) ) ))
+    sys.path.append(os.path.dirname( os.path.dirname( os.path.abspath(__file__) ) ))
+    from utils import ext_transforms as et
+    from torch.utils.data import DataLoader
+    from tqdm import tqdm
+    from splits import split_dataset
+
+    transform = et.ExtCompose([
+            et.ExtRandomCrop(size=(512, 512), pad_if_needed=True),
+            et.ExtScale(scale=0.5),
+            et.ExtToTensor(),
+            et.ExtNormalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            ])
+    
+    dst = CPNSegmentation(root='/data/sdi/datasets', datatype='CPN', image_set='train',
+                                transform=transform, is_rgb=True)
+    train_loader = DataLoader(dst, batch_size=16,
+                                shuffle=True, num_workers=2, drop_last=True)
+    
+    for i, (ims, lbls) in tqdm(enumerate(train_loader)):
+        print(ims.shape)
+        print(lbls.shape)
+        if i > 1:
+            break
+    

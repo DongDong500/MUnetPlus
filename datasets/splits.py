@@ -1,6 +1,6 @@
 import os
 
-def splits(splits_dir, data_dir, ratio=0.2):
+def split_dataset(splits_dir, data_dir, ratio=0.2):
 
     """
     Args:

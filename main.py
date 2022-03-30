@@ -31,10 +31,10 @@ def get_argparser():
                         choices=['CPN', 'CPN_crop', 'median', 'CTS', 'muscleUS'], help='Name of dataset')
     parser.add_argument("--num_classes", type=int, default=2,
                         help="num class (default: 2")
-    parser.add_argument("--is_rgb", action='store_true', default=False)
+    parser.add_argument("--is_rgb", action='store_false', default=True)
 
     # Train Options
-    parser.add_argument("--gpus", type=str, default='cpu')
+    parser.add_argument("--gpus", type=str, default='6,7')
     parser.add_argument("--ckpt", default=None, type=str,
                         help="restore from checkpoint")
     # Save best model checkpoint
@@ -85,6 +85,9 @@ def get_argparser():
     parser.add_argument("--current_time", type=str, default=ctime,
                         help="results images folder name (default: current time)")
 
+    # Run Demo
+    parser.add_argument("--run_demo", action='store_true', default=False)
+
     return parser
 
 
@@ -101,7 +104,7 @@ if __name__ == '__main__':
     total_time = datetime.now()
     try:
         for loss_name in ['entropy_dice_loss', 'cross_entropy', 'dice_loss', 'focal_loss']:
-            for lr in [5e-2, 5e-3, 5e-4, 5e-5, 5e-6, 5e-7]:
+            for lr in [5e-2, 5e-3, 5e-4]:
                 
                 opts.current_time = datetime.now().strftime('%b%d_%H-%M-%S')
                 opts.loss_type = loss_name

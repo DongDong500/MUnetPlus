@@ -40,9 +40,9 @@ def get_dataset(opts):
 
     if opts.dataset == "CPN":
         train_dst = dt.CPNSegmentation(root=opts.data_root, datatype='CPN', image_set='train',
-                                     transform=train_transform, is_rgb=False)
+                                     transform=train_transform, is_rgb=True)
         val_dst = dt.CPNSegmentation(root=opts.data_root, datatype='CPN', image_set='val',
-                                  transform=val_transform, is_rgb=False)
+                                  transform=val_transform, is_rgb=True)
     else:
         raise NotImplementedError
     
@@ -75,12 +75,13 @@ def save_val_image(opts, model, loader, device, epoch):
         lbl = labels.detach().cpu().numpy()
 
         for j in range(images.shape[0]):
-            tar1 = (denorm(image[i]) * 255).transpose(1, 2, 0).astype(np.uint8)
-            tar2 = (lbl[i] * 255).astype(np.uint8)
-            tar3 = (preds[i] * 255).astype(np.uint8)
-            Image.fromarray(tar1).save(os.path.join(save_dir, '{}_image.png'.format(i*images.shape[0] + j)))
-            Image.fromarray(tar2).save(os.path.join(save_dir, '{}_mask.png'.format(i*images.shape[0] + j)))
-            Image.fromarray(tar3).save(os.path.join(save_dir, '{}_preds.png'.format(i*images.shape[0] + j)))
+            tar1 = (denorm(image[j]) * 255).transpose(1, 2, 0).astype(np.uint8)
+            tar2 = (lbl[j] * 255).astype(np.uint8)
+            tar3 = (preds[j] * 255).astype(np.uint8)
+            idx = str(i*images.shape[0] + j).zfill(3)
+            Image.fromarray(tar1).save(os.path.join( save_dir, '{}_image.png'.format(idx) ))
+            Image.fromarray(tar2).save(os.path.join( save_dir, '{}_mask.png'.format(idx) ))
+            Image.fromarray(tar3).save(os.path.join( save_dir, '{}_preds.png'.format(idx) ))
     
 
 def validate(opts, model, loader, device, metrics, epoch, criterion):
@@ -163,7 +164,7 @@ def train(devices=None, opts=None):
     try:
         print("Model selection: {}".format(opts.model))
         model = network.modeling.__dict__[opts.model](channel=3 if opts.is_rgb else 1, 
-                                                        num_class=opts.num_classes)
+                                                        num_classes=opts.num_classes)
         # Data Parallel Option
         if torch.cuda.device_count() > 1:
             model = nn.DataParallel(model)
@@ -242,7 +243,7 @@ def train(devices=None, opts=None):
         score = metrics.get_results()
 
         epoch_loss = running_loss / len(train_loader.dataset)
-        print("[{}] Epoch: {}/{} Loss: {}".format(
+        print("[{}] Epoch: {}/{} Loss: {:.8f}".format(
             'Train', epoch+1, opts.total_itrs, epoch_loss))
         print("Overall Acc: {:.2f}, Mean Acc: {:.2f}, FreqW Acc: {:.2f}, Mean IoU: {:.2f}, Class IoU [0]: {:.2f} [1]: {:.2f}".format(
             score['Overall Acc'], score['Mean Acc'], score['FreqW Acc'], score['Mean IoU'], score['Class IoU'][0], score['Class IoU'][1]))
@@ -267,7 +268,7 @@ def train(devices=None, opts=None):
                                                 devices, metrics, epoch, criterion)
                 early_stopping(val_loss, model)
 
-                print("[{}] Epoch: {}/{} Loss: {}".format('Validate', epoch+1, opts.total_itrs, val_loss))
+                print("[{}] Epoch: {}/{} Loss: {:.8f}".format('Validate', epoch+1, opts.total_itrs, val_loss))
                 print("Overall Acc: {:.2f}, Mean Acc: {:.2f}, FreqW Acc: {:.2f}, Mean IoU: {:.2f}".format(
                     val_score['Overall Acc'], val_score['Mean Acc'], val_score['FreqW Acc'], val_score['Mean IoU']))
                 print("Class IoU [0]: {:.2f} [1]: {:.2f}".format(val_score['Class IoU'][0], val_score['Class IoU'][1]))
@@ -288,6 +289,9 @@ def train(devices=None, opts=None):
             print("Early Stop !!!")
             if opts.save_val_results:
                 save_val_image(opts, model, val_loader, devices, epoch)
+            break
+        
+        if opts.run_demo and epoch > 3:
             break
 
 
