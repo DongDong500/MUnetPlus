@@ -214,12 +214,13 @@ def train(devices=None, opts=None):
     ''' (5) Set up metrics
     '''
     metrics = StreamSegMetrics(opts.num_classes)
-    early_stopping = utils.EarlyStopping(patience=opts.step_size, verbose=True, 
+    early_stopping = utils.EarlyStopping(patience=opts.step_size/opts.val_interval, verbose=True, 
                                             path=opts.save_ckpt, save_model=opts.save_model)
     best_score = 0.0
 
     ''' (6) Train
     '''
+    B_epoch = 0
     for epoch in range(resume_epoch, opts.total_itrs):
 
         model.train()
@@ -282,7 +283,8 @@ def train(devices=None, opts=None):
                 metrics.reset()
                 val_score, val_loss = validate(opts, model, val_loader, 
                                                 devices, metrics, epoch, criterion)
-                early_stopping(val_loss, model)
+                if early_stopping(val_loss, model):
+                    B_epoch = epoch
 
                 print("[{}] Epoch: {}/{} Loss: {:.8f}".format('Validate', epoch+1, opts.total_itrs, val_loss))
                 print("Overall Acc: {:.2f}, Mean Acc: {:.2f}, FreqW Acc: {:.2f}, Mean IoU: {:.2f}".format(
@@ -303,12 +305,13 @@ def train(devices=None, opts=None):
         
         if early_stopping.early_stop:
             print("Early Stop !!!")
-            if opts.save_last_results:
-                save_val_image(opts, model, val_loader, devices, epoch)
             break
         
         if opts.run_demo and epoch > 3:
             break
+    if opts.save_last_results:
+        model.load_state_dict(torch.load(os.path.join(opts.save_ckpt, 'checkpoint.pt')))
+        save_val_image(opts, model, val_loader, devices, B_epoch)
 
 
     
