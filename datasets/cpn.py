@@ -7,7 +7,7 @@ import shutil
 import numpy as np
 
 from PIL import Image
-
+from splits import splits
 
 def voc_cmap(N=256, normalized=False):
     def bitget(byteval, idx):
@@ -64,6 +64,9 @@ class CPNSegmentation(data.Dataset):
         else:
             splits_dir = os.path.join(cpn_root, 'splits')
             split_f = os.path.join(splits_dir, image_set.rstrip('\n') + '.txt')
+
+        if not os.path.exists(splits_dir):
+            splits(splits_dir=splits_dir, data_dir=image_dir)
 
         if not os.path.exists(split_f):
             raise ValueError('Wrong image_set entered!' 

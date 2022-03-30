@@ -69,9 +69,8 @@ def save_val_image(opts, model, loader, device, epoch):
         labels = labels.to(device, dtype=torch.long)
         outputs = model(images)
         probs = nn.Softmax(dim=1)(outputs)
-        preds = torch.max(probs, 1)[1].detach().cpu().numpy()
-        target = labels.detach().cpu().numpy()
 
+        preds = torch.max(probs, 1)[1].detach().cpu().numpy()
         image = images.detach().cpu().numpy()
         lbl = labels.detach().cpu().numpy()
 
@@ -103,7 +102,7 @@ def validate(opts, model, loader, device, metrics, epoch, criterion):
             metrics.update(target, preds)
             loss = criterion(outputs, labels)
             running_loss += loss.item() * images.size(0)
-            
+
         if opts.save_val_results:
             save_val_image(opts, model, loader, device, epoch)
 
@@ -135,7 +134,7 @@ def train(devices=None, opts=None):
         logdir = os.path.join(LOGDIR, 'train_results')
         os.mkdir(logdir)
         opts.save_train_dir = logdir
-    # CheckPoint
+    # Check Point
     if opts.save_model:
         logdir = os.path.join(LOGDIR, 'best_param')
         os.mkdir(logdir)
