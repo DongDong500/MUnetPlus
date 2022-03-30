@@ -58,7 +58,8 @@ def get_argparser():
     parser.add_argument("--lr", type=float, default=1e-1,
                         help="learning rate (default: 1e-1)") 
     parser.add_argument("--loss_type", type=str, default='cross_entropy',
-                        choices=['cross_entropy', 'focal_loss', 'entropy_dice_loss', 'dice_loss'], 
+                        choices=['cross_entropy', 'focal_loss', 'entropy_dice_loss', 
+                                'dice_loss', 'ap_cross_entropy', 'ap_entropy_dice_loss'], 
                         help="loss type")
     parser.add_argument("--lr_policy", type=str, default='step', choices=['poly', 'step'],
                         help="learning rate scheduler policy")
@@ -72,6 +73,8 @@ def get_argparser():
     parser.add_argument("--val_interval", type=int, default=10,
                         help="epoch interval for eval (default: 10)")
     parser.add_argument("--save_val_results", action='store_true', default=False,
+                        help='save segmentation results to \"./val_results\"')
+    parser.add_argument("--save_last_results", action='store_true', default=False,
                         help='save segmentation results to \"./val_results\"')
     parser.add_argument("--save_val_dir", type=str, default=default_path,
                         help="save segmentation results to \"./results\"")
@@ -103,8 +106,8 @@ if __name__ == '__main__':
 
     total_time = datetime.now()
     try:
-        for loss_name in ['entropy_dice_loss', 'cross_entropy', 'dice_loss', 'focal_loss']:
-            for lr in [5e-2, 5e-3, 5e-4]:
+        for loss_name in ['ap_cross_entropy', 'cross_entropy', 'ap_entropy_dice_loss', 'entropy_dice_loss']:
+            for lr in [5e-6, 5e-5]:
                 
                 opts.current_time = datetime.now().strftime('%b%d_%H-%M-%S')
                 opts.loss_type = loss_name
@@ -112,7 +115,7 @@ if __name__ == '__main__':
                 if loss_name == 'focal_loss':
                     opts.lr = lr*1e+4
                 elif loss_name == 'entropy_dice_loss':
-                    opts.lr = lr*1e-3
+                    opts.lr = lr
                 else:
                     opts.lr = lr
 

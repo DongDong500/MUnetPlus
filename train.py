@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch import optim
+from torch import float32, optim
 from torch.utils import data
 from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
@@ -126,7 +126,7 @@ def train(devices=None, opts=None):
         logdir = os.path.join(LOGDIR, 'log')
         writer = SummaryWriter(log_dir=logdir)
     # Validate
-    if opts.save_val_results:
+    if opts.save_val_results or opts.save_last_results:
         logdir = os.path.join(LOGDIR, 'val_results')
         os.mkdir(logdir)
         opts.save_val_dir = logdir
@@ -190,6 +190,10 @@ def train(devices=None, opts=None):
         criterion = utils.DiceLoss()
     elif opts.loss_type == 'entropy_dice_loss':
         criterion = utils.EntropyDiceLoss(weight=torch.tensor([0.02, 0.98]).to(devices))
+    elif opts.loss_type == 'ap_cross_entropy':
+        criterion = None
+    elif opts.loss_type == 'ap_entropy_dice_loss':
+        criterion = None
     else:
         raise NotImplementedError
 
@@ -210,7 +214,7 @@ def train(devices=None, opts=None):
     ''' (5) Set up metrics
     '''
     metrics = StreamSegMetrics(opts.num_classes)
-    early_stopping = utils.EarlyStopping(patience=40, verbose=True, 
+    early_stopping = utils.EarlyStopping(patience=opts.step_size, verbose=True, 
                                             path=opts.save_ckpt, save_model=opts.save_model)
     best_score = 0.0
 
@@ -232,8 +236,20 @@ def train(devices=None, opts=None):
             outputs = model(images)
             probs = nn.Softmax(dim=1)(outputs)
             preds = torch.max(probs, 1)[1].detach().cpu().numpy()
-            
-            loss = criterion(outputs, lbl)
+
+            if opts.loss_type == 'ap_cross_entropy':
+                weights = lbl.detach().cpu().numpy().sum() / (lbl.shape[0] * lbl.shape[1] * lbl.shape[2])
+                weights = torch.tensor([weights, 1-weights], dtype=float32).to(devices)
+                criterion = utils.CrossEntropyLoss(weight=weights)
+                loss = criterion(outputs, lbl)
+            elif opts.loss_type == 'ap_entropy_dice_loss':
+                weights = lbl.detach().cpu().numpy().sum() / (lbl.shape[0] * lbl.shape[1] * lbl.shape[2])
+                weights = torch.tensor([weights, 1-weights], dtype=float32).to(devices)
+                criterion = utils.EntropyDiceLoss(weight=weights)
+                loss = criterion(outputs, lbl)
+            else:
+                loss = criterion(outputs, lbl)
+
             loss.backward()
             optimizer.step()
             metrics.update(lbl.detach().cpu().numpy(), preds)
@@ -287,7 +303,7 @@ def train(devices=None, opts=None):
         
         if early_stopping.early_stop:
             print("Early Stop !!!")
-            if opts.save_val_results:
+            if opts.save_last_results:
                 save_val_image(opts, model, val_loader, devices, epoch)
             break
         

@@ -7,7 +7,7 @@ import shutil
 import numpy as np
 
 from PIL import Image
-#from .splits import split_dataset
+from .splits import split_dataset
 '''
 if __package__ is None:
     print(os.path.dirname( os.path.dirname( os.path.abspath(__file__) ) ))
@@ -148,6 +148,8 @@ if __name__ == "__main__":
     for i, (ims, lbls) in tqdm(enumerate(train_loader)):
         print(ims.shape)
         print(lbls.shape)
+        print(lbls.numpy().sum()/(lbls.shape[0] * lbls.shape[1] * lbls.shape[2]))
+        print(1 - lbls.numpy().sum()/(lbls.shape[0] * lbls.shape[1] * lbls.shape[2]))
         if i > 1:
             break
     
