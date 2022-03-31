@@ -309,6 +309,7 @@ def train(devices=None, opts=None):
         
         if opts.run_demo and epoch > 3:
             break
+        
     if opts.save_last_results:
         model.load_state_dict(torch.load(os.path.join(opts.save_ckpt, 'checkpoint.pt')))
         save_val_image(opts, model, val_loader, devices, B_epoch)
