@@ -7,7 +7,7 @@ import shutil
 import numpy as np
 
 from PIL import Image
-from .splits import split_dataset
+#from .splits import split_dataset
 '''
 if __package__ is None:
     print(os.path.dirname( os.path.dirname( os.path.abspath(__file__) ) ))
@@ -49,7 +49,7 @@ class CPNALLSegmentation(data.Dataset):
     """
 
     cmap = voc_cmap()
-    def __init__(self, root, datatype='CPN', image_set='train', transform=None, is_rgb=True):
+    def __init__(self, root, datatype='CPN_all', image_set='train', transform=None, is_rgb=True):
         
         is_aug = False
 
@@ -82,12 +82,10 @@ class CPNALLSegmentation(data.Dataset):
 
         with open(os.path.join(split_f), "r") as f:
             file_names = [x.strip() for x in f.readlines()]
-        if datatype == 'CPN_c':
-            self.images = [os.path.join(image_dir, x + ".jpg") for x in file_names]
-            self.masks = [os.path.join(mask_dir, x + ".jpg") for x in file_names]
-        else:
-            self.images = [os.path.join(image_dir, x + ".bmp") for x in file_names]
-            self.masks = [os.path.join(mask_dir, x + "_mask.bmp") for x in file_names]
+
+        self.images = [os.path.join(image_dir, x + ".bmp") for x in file_names]
+        self.masks = [os.path.join(mask_dir, x + "_mask.bmp") for x in file_names]
+
         assert (len(self.images) == len(self.masks))
 
     def __getitem__(self, index):
@@ -136,11 +134,11 @@ if __name__ == "__main__":
             et.ExtRandomCrop(size=(512, 512), pad_if_needed=True),
             et.ExtScale(scale=0.5),
             et.ExtToTensor(),
-            et.ExtNormalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            et.ExtNormalize(mean=0.485, std=0.229)
             ])
     
-    dst = CPNALLSegmentation(root='/data/sdi/datasets', datatype='CPN', image_set='train',
-                                transform=transform, is_rgb=True)
+    dst = CPNALLSegmentation(root='/data/sdi/datasets', datatype='CPN_all', image_set='train',
+                                transform=transform, is_rgb=False)
     train_loader = DataLoader(dst, batch_size=16,
                                 shuffle=True, num_workers=2, drop_last=True)
     

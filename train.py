@@ -36,12 +36,27 @@ def get_dataset(opts):
             et.ExtNormalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
     else:
-        raise NotImplementedError
+        train_transform = et.ExtCompose([
+            et.ExtRandomCrop(size=opts.crop_size, pad_if_needed=True),
+            et.ExtScale(scale=opts.scale_factor),
+            et.ExtToTensor(),
+            et.ExtNormalize(mean=0.485, std=0.229)
+        ])
+        val_transform = et.ExtCompose([
+            et.ExtRandomCrop(size=opts.crop_size, pad_if_needed=True),
+            et.ExtToTensor(),
+            et.ExtNormalize(mean=0.485, std=0.229)
+        ])
 
     if opts.dataset == "CPN":
         train_dst = dt.CPNSegmentation(root=opts.data_root, datatype='CPN', image_set='train',
                                      transform=train_transform, is_rgb=True)
         val_dst = dt.CPNSegmentation(root=opts.data_root, datatype='CPN', image_set='val',
+                                  transform=val_transform, is_rgb=True)
+    elif opts.dataset == "CPN_all":
+        train_dst = dt.CPNALLSegmentation(root=opts.data_root, datatype='CPN_all', image_set='train',
+                                     transform=train_transform, is_rgb=True)
+        val_dst = dt.CPNALLSegmentation(root=opts.data_root, datatype='CPN_all', image_set='val',
                                   transform=val_transform, is_rgb=True)
     else:
         raise NotImplementedError
@@ -62,7 +77,7 @@ def save_val_image(opts, model, loader, device, epoch):
         denorm = utils.Denormalize(mean=[0.485, 0.456, 0.406],
                                     std=[0.229, 0.224, 0.225])
     else:
-        raise NotImplementedError
+        denorm = utils.Denormalize(mean=0.485, std=0.229)
 
     for i, (images, labels) in tqdm(enumerate(loader)):
         images = images.to(device, dtype=torch.float32)
@@ -309,7 +324,7 @@ def train(devices=None, opts=None):
         
         if opts.run_demo and epoch > 3:
             break
-        
+
     if opts.save_last_results:
         model.load_state_dict(torch.load(os.path.join(opts.save_ckpt, 'checkpoint.pt')))
         save_val_image(opts, model, val_loader, devices, B_epoch)
