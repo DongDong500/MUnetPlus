@@ -1,4 +1,5 @@
 from .unet import UNet
+from .unet_gray import UNet_gray
 
 def _load_model():
     raise NotImplementedError
@@ -9,4 +10,4 @@ def unet_rgb(channel=3, num_classes=2):
 
 def unet_gray(channel=1, num_classes=2):
     print('UNet GRAY - Channel: {} Classes: {}'.format(channel, num_classes))
-    return UNet(n_channels=channel, n_classes=num_classes)
+    return UNet_gray(n_channels=channel, n_classes=num_classes)

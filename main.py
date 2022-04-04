@@ -28,7 +28,7 @@ def get_argparser():
     parser.add_argument("--data_root", type=str, default=dataset_path,
                         help="path to Dataset")
     parser.add_argument("--dataset", type=str, default="CPN", 
-                        choices=['CPN', 'CPN_crop', 'median', 'CTS', 'muscleUS'], help='Name of dataset')
+                        choices=['CPN', 'CPN_all', 'CPN_crop', 'median', 'CTS', 'muscleUS'], help='Name of dataset')
     parser.add_argument("--num_classes", type=int, default=2,
                         help="num class (default: 2")
     parser.add_argument("--is_rgb", action='store_false', default=True)
@@ -47,7 +47,7 @@ def get_argparser():
                         help='batch size (default: 16)')
     parser.add_argument("--val_batch_size", type=int, default=4,
                         help='batch size for validation (default: 4)')
-    parser.add_argument("--crop_size", type=int, default=(640, 512))
+    parser.add_argument("--crop_size", type=int, default=(512, 512))
     parser.add_argument("--scale_factor", type=float, default=5e-1)
 
     parser.add_argument("--random_seed", type=int, default=1,

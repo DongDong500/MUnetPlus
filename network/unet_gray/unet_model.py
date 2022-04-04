@@ -2,11 +2,11 @@
 from .unet_parts import *
 
 
-class UNet(nn.Module):
+class UNet_gray(nn.Module):
 
-    def __init__(self, n_channels, n_classes=2, bilinear=False):
+    def __init__(self, n_channels=1, n_classes=2, bilinear=False):
         
-        super(UNet, self).__init__()
+        super(UNet_gray, self).__init__()
         self.n_channels = n_channels
         self.n_classes = n_classes
         self.bilinear = bilinear
