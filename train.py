@@ -93,15 +93,22 @@ def save_val_image(opts, model, loader, device, epoch):
         
         for j in range(images.shape[0]):
             tar1 = (denorm(image[j]) * 255).transpose(1, 2, 0).astype(np.uint8)
+            img = (denorm(image[j]) * 255).transpose(1, 2, 0)
             #print('denorm shape', tar1.shape) # (512, 512, 1)
             if not opts.is_rgb:
                 tar1 = np.squeeze(tar1)
+                img = np.squeeze(img)
             tar2 = (lbl[j] * 255).astype(np.uint8)
             tar3 = (preds[j] * 255).astype(np.uint8)
+
+            tar4 = (255 - (lbl[j] * 200 + preds[j] * 55)).astype(np.uint8)
+            tar5 = ( (img + 0.2 * ( (255 - (preds[j] * 255).astype(np.float32)) )) / 1.2 ).astype(np.uint8)
+
             idx = str(i*images.shape[0] + j).zfill(3)
-            Image.fromarray(tar1).save(os.path.join( save_dir, '{}_image.png'.format(idx) ))
-            Image.fromarray(tar2).save(os.path.join( save_dir, '{}_mask.png'.format(idx) ))
-            Image.fromarray(tar3).save(os.path.join( save_dir, '{}_preds.png'.format(idx) ))
+            Image.fromarray(tar4).save(os.path.join( save_dir, '{}_mask.png'.format(idx) ))
+            Image.fromarray(tar5).save(os.path.join( save_dir, '{}_image.png'.format(idx) ))
+            
+            #Image.fromarray(tar3).save(os.path.join( save_dir, '{}_preds.png'.format(idx) ))
     
 
 def validate(opts, model, loader, device, metrics, epoch, criterion):
