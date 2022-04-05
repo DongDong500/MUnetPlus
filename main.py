@@ -47,7 +47,7 @@ def get_argparser():
                         help='batch size (default: 16)')
     parser.add_argument("--val_batch_size", type=int, default=4,
                         help='batch size for validation (default: 4)')
-    parser.add_argument("--crop_size", type=int, default=(512, 512))
+    parser.add_argument("--crop_size", type=int, default=(512, 448))
     parser.add_argument("--scale_factor", type=float, default=5e-1)
 
     parser.add_argument("--random_seed", type=int, default=1,

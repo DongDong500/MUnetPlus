@@ -37,13 +37,17 @@ def get_dataset(opts):
         ])
     else:
         train_transform = et.ExtCompose([
-            et.ExtRandomCrop(size=opts.crop_size, pad_if_needed=True),
+            et.ExtResize(size=(496, 468)),
+            et.ExtRandomCrop(size=(512, 448), pad_if_needed=True),
             et.ExtScale(scale=opts.scale_factor),
+            et.ExtRandomVerticalFlip(),
             et.ExtToTensor(),
             et.ExtNormalize(mean=[0.485], std=[0.229])
         ])
         val_transform = et.ExtCompose([
-            et.ExtRandomCrop(size=opts.crop_size, pad_if_needed=True),
+            et.ExtResize(size=(496, 468)),
+            et.ExtRandomCrop(size=(512, 448), pad_if_needed=True),
+            et.ExtScale(scale=opts.scale_factor),
             et.ExtToTensor(),
             et.ExtNormalize(mean=[0.485], std=[0.229])
         ])
@@ -97,11 +101,11 @@ def save_val_image(opts, model, loader, device, epoch):
             #print('denorm shape', tar1.shape) # (512, 512, 1)
             if not opts.is_rgb:
                 tar1 = np.squeeze(tar1)
-                img = np.squeeze(img)
+                img = np.squeeze(img).astype(np.float32)
             tar2 = (lbl[j] * 255).astype(np.uint8)
             tar3 = (preds[j] * 255).astype(np.uint8)
 
-            tar4 = (255 - (lbl[j] * 200 + preds[j] * 55)).astype(np.uint8)
+            tar4 = (255 - (lbl[j] * 225 + preds[j] * 30)).astype(np.uint8)
             tar5 = ( (img + 0.2 * ( (255 - (preds[j] * 255).astype(np.float32)) )) / 1.2 ).astype(np.uint8)
 
             idx = str(i*images.shape[0] + j).zfill(3)
