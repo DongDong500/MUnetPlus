@@ -40,12 +40,12 @@ def get_dataset(opts):
             et.ExtRandomCrop(size=opts.crop_size, pad_if_needed=True),
             et.ExtScale(scale=opts.scale_factor),
             et.ExtToTensor(),
-            et.ExtNormalize(mean=0.485, std=0.229)
+            et.ExtNormalize(mean=[0.485], std=[0.229])
         ])
         val_transform = et.ExtCompose([
             et.ExtRandomCrop(size=opts.crop_size, pad_if_needed=True),
             et.ExtToTensor(),
-            et.ExtNormalize(mean=0.485, std=0.229)
+            et.ExtNormalize(mean=[0.485], std=[0.229])
         ])
 
     if opts.dataset == "CPN":
@@ -55,9 +55,9 @@ def get_dataset(opts):
                                   transform=val_transform, is_rgb=True)
     elif opts.dataset == "CPN_all":
         train_dst = dt.CPNALLSegmentation(root=opts.data_root, datatype='CPN_all', image_set='train',
-                                     transform=train_transform, is_rgb=True)
+                                     transform=train_transform, is_rgb=opts.is_rgb)
         val_dst = dt.CPNALLSegmentation(root=opts.data_root, datatype='CPN_all', image_set='val',
-                                  transform=val_transform, is_rgb=True)
+                                  transform=val_transform, is_rgb=opts.is_rgb)
     else:
         raise NotImplementedError
     
@@ -77,7 +77,7 @@ def save_val_image(opts, model, loader, device, epoch):
         denorm = utils.Denormalize(mean=[0.485, 0.456, 0.406],
                                     std=[0.229, 0.224, 0.225])
     else:
-        denorm = utils.Denormalize(mean=0.485, std=0.229)
+        denorm = utils.Denormalize(mean=[0.485], std=[0.229])
 
     for i, (images, labels) in tqdm(enumerate(loader)):
         images = images.to(device, dtype=torch.float32)
@@ -88,9 +88,14 @@ def save_val_image(opts, model, loader, device, epoch):
         preds = torch.max(probs, 1)[1].detach().cpu().numpy()
         image = images.detach().cpu().numpy()
         lbl = labels.detach().cpu().numpy()
-
+        #print('Image shape', image.shape) # (5, 1, 512, 512)
+        #print('lablel shape', lbl.shape) # (5, 512, 512)
+        
         for j in range(images.shape[0]):
             tar1 = (denorm(image[j]) * 255).transpose(1, 2, 0).astype(np.uint8)
+            #print('denorm shape', tar1.shape) # (512, 512, 1)
+            if not opts.is_rgb:
+                tar1 = np.squeeze(tar1)
             tar2 = (lbl[j] * 255).astype(np.uint8)
             tar3 = (preds[j] * 255).astype(np.uint8)
             idx = str(i*images.shape[0] + j).zfill(3)
