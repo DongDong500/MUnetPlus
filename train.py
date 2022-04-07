@@ -194,7 +194,7 @@ def train(devices=None, opts=None):
     '''
     try:
         print("Model selection: {}".format(opts.model))
-        model = network.modeling.__dict__[opts.model](channel=3 if opts.is_rgb else 1, 
+        model = network.model.__dict__[opts.model](channel=3 if opts.is_rgb else 1, 
                                                         num_classes=opts.num_classes)
         # Data Parallel Option
         if torch.cuda.device_count() > 1:

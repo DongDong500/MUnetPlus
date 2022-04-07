@@ -18,9 +18,9 @@ def get_argparser():
     parser.add_argument("--save_log", action='store_true', default=False, 
                         help='save tensorboard logs to {}'.format(default_path))
     # Model Options
-    available_models = sorted(name for name in network.modeling.__dict__ if name.islower() and \
+    available_models = sorted(name for name in network.model.__dict__ if name.islower() and \
                               not (name.startswith("__") or name.startswith('_')) and callable(
-                              network.modeling.__dict__[name]) 
+                              network.model.__dict__[name]) 
                              )
     parser.add_argument("--model", type=str, default='unet_rgb',
                         choices=available_models, help='model name')
@@ -107,7 +107,7 @@ if __name__ == '__main__':
     total_time = datetime.now()
     try:
         for loss_name in ['ap_cross_entropy', 'cross_entropy', 'ap_entropy_dice_loss', 'entropy_dice_loss']:
-            for lr in [5e-6, 5e-5]:
+            for lr in [5e-6, 5e-5, 5e-4, 5e-3, 5e-2]:
                 
                 opts.current_time = datetime.now().strftime('%b%d_%H-%M-%S')
                 opts.loss_type = loss_name
