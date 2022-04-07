@@ -106,11 +106,11 @@ def save_val_image(opts, model, loader, device, epoch):
             tar3 = (preds[j] * 255).astype(np.uint8)
 
             tar4 = (255 - (lbl[j] * 225 + preds[j] * 30)).astype(np.uint8)
-            tar5 = ( (img + 0.2 * ( (255 - (preds[j] * 255).astype(np.float32)) )) / 1.2 ).astype(np.uint8)
+            #tar5 = ( (img + 0.2 * ( (255 - (preds[j] * 255).astype(np.float32)) )) / 1.2 ).astype(np.uint8)
 
             idx = str(i*images.shape[0] + j).zfill(3)
             Image.fromarray(tar4).save(os.path.join( save_dir, '{}_mask.png'.format(idx) ))
-            Image.fromarray(tar5).save(os.path.join( save_dir, '{}_image.png'.format(idx) ))
+            #Image.fromarray(tar5).save(os.path.join( save_dir, '{}_image.png'.format(idx) ))
             
             #Image.fromarray(tar3).save(os.path.join( save_dir, '{}_preds.png'.format(idx) ))
     
@@ -186,7 +186,7 @@ def train(devices=None, opts=None):
     train_loader = DataLoader(train_dst, batch_size=opts.batch_size,
                                 shuffle=True, num_workers=2, drop_last=True)
     val_loader = DataLoader(val_dst, batch_size=opts.val_batch_size, 
-                                shuffle=True, num_workers=2)
+                                shuffle=True, num_workers=2, drop_last=True)
     print("Dataset: %s, Train set: %d, Val set: %d" % 
                     (opts.dataset, len(train_dst), len(val_dst)))
 
