@@ -25,20 +25,24 @@ from utils import ext_transforms as et
 def get_dataset(opts):
     if opts.is_rgb:
         train_transform = et.ExtCompose([
+            et.ExtResize(size=(496, 468)),
             et.ExtRandomCrop(size=opts.crop_size, pad_if_needed=True),
             et.ExtScale(scale=opts.scale_factor),
+            et.ExtRandomVerticalFlip(),
             et.ExtToTensor(),
             et.ExtNormalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
         val_transform = et.ExtCompose([
+            et.ExtResize(size=(496, 468)),
             et.ExtRandomCrop(size=opts.crop_size, pad_if_needed=True),
+            et.ExtScale(scale=opts.scale_factor),
             et.ExtToTensor(),
             et.ExtNormalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
         ])
     else:
         train_transform = et.ExtCompose([
             et.ExtResize(size=(496, 468)),
-            et.ExtRandomCrop(size=(512, 448), pad_if_needed=True),
+            et.ExtRandomCrop(size=opts.crop_size, pad_if_needed=True),
             et.ExtScale(scale=opts.scale_factor),
             et.ExtRandomVerticalFlip(),
             et.ExtToTensor(),
@@ -46,7 +50,7 @@ def get_dataset(opts):
         ])
         val_transform = et.ExtCompose([
             et.ExtResize(size=(496, 468)),
-            et.ExtRandomCrop(size=(512, 448), pad_if_needed=True),
+            et.ExtRandomCrop(size=opts.crop_size, pad_if_needed=True),
             et.ExtScale(scale=opts.scale_factor),
             et.ExtToTensor(),
             et.ExtNormalize(mean=[0.485], std=[0.229])
@@ -110,6 +114,8 @@ def save_val_image(opts, model, loader, device, epoch):
 
             idx = str(i*images.shape[0] + j).zfill(3)
             Image.fromarray(tar4).save(os.path.join( save_dir, '{}_mask.png'.format(idx) ))
+            if i*images.shape[0] + j < 5:
+                Image.fromarray(tar1).save(os.path.join( save_dir, '{}_image.png'.format(idx) ))
             #Image.fromarray(tar5).save(os.path.join( save_dir, '{}_image.png'.format(idx) ))
             
             #Image.fromarray(tar3).save(os.path.join( save_dir, '{}_preds.png'.format(idx) ))
@@ -171,6 +177,10 @@ def train(devices=None, opts=None):
         logdir = os.path.join(LOGDIR, 'best_param')
         os.mkdir(logdir)
         opts.save_ckpt = logdir
+    else:
+        logdir = os.path.join(LOGDIR, 'cache_param')
+        os.mkdir(logdir)
+        opts.save_ckpt = logdir
     # Save Options description
     with open(os.path.join(LOGDIR, 'summary.txt'), 'w') as f:
         for k, v in vars(opts).items():
@@ -196,9 +206,8 @@ def train(devices=None, opts=None):
         print("Model selection: {}".format(opts.model))
         model = network.model.__dict__[opts.model](channel=3 if opts.is_rgb else 1, 
                                                         num_classes=opts.num_classes)
-        # Data Parallel Option
-        if torch.cuda.device_count() > 1:
-            model = nn.DataParallel(model)
+        if opts.model == 'deeplabv3_resnet50':
+            utils.set_bn_momentum(model.backbone, momentum=0.01)
     except:
         raise Exception
     
@@ -230,12 +239,18 @@ def train(devices=None, opts=None):
 
     ''' (4) Set up optimizer
     '''
-    optimizer = optim.RMSprop(model.parameters(), 
-                                lr=opts.lr, 
-                                weight_decay=opts.weight_decay,
-                                momentum=opts.momentum)
+    if opts.model == 'deeplabv3_resnet50':
+        optimizer = torch.optim.SGD(params=[
+        {'params': model.backbone.parameters(), 'lr': 0.1 * opts.lr},
+        {'params': model.classifier.parameters(), 'lr': opts.lr},
+        ], lr=opts.lr, momentum=0.9, weight_decay=opts.weight_decay)
+    else:
+        optimizer = optim.RMSprop(model.parameters(), 
+                                    lr=opts.lr, 
+                                    weight_decay=opts.weight_decay,
+                                    momentum=opts.momentum)
     if opts.lr_policy == 'poly':
-        raise NotImplementedError
+        scheduler = utils.PolyLR(optimizer, opts.total_itrs, power=0.9)
     elif opts.lr_policy == 'step':
         scheduler = optim.lr_scheduler.StepLR(optimizer=optimizer, 
                                                 step_size=opts.step_size, gamma=0.1)
@@ -248,6 +263,12 @@ def train(devices=None, opts=None):
     early_stopping = utils.EarlyStopping(patience=opts.step_size/opts.val_interval, verbose=True, 
                                             path=opts.save_ckpt, save_model=opts.save_model)
     best_score = 0.0
+
+    ''' (.) Data Parallel
+    '''
+    # Data Parallel Option
+    if torch.cuda.device_count() > 1:
+        model = nn.DataParallel(model)
 
     ''' (6) Train
     '''
@@ -293,9 +314,9 @@ def train(devices=None, opts=None):
         epoch_loss = running_loss / len(train_loader.dataset)
         print("[{}] Epoch: {}/{} Loss: {:.8f}".format(
             'Train', epoch+1, opts.total_itrs, epoch_loss))
-        print("Overall Acc: {:.2f}, Mean Acc: {:.2f}, FreqW Acc: {:.2f}, Mean IoU: {:.2f}, Class IoU [0]: {:.2f} [1]: {:.2f}".format(
+        print(" Overall Acc: {:.2f}, Mean Acc: {:.2f}, FreqW Acc: {:.2f}, Mean IoU: {:.2f}, Class IoU [0]: {:.2f} [1]: {:.2f}".format(
             score['Overall Acc'], score['Mean Acc'], score['FreqW Acc'], score['Mean IoU'], score['Class IoU'][0], score['Class IoU'][1]))
-        print("F1 [0]: {:.2f} [1]: {:.2f}".format(score['Class F1'][0], score['Class F1'][1]))
+        print(" F1 [0]: {:.2f} [1]: {:.2f}".format(score['Class F1'][0], score['Class F1'][1]))
         
         if opts.save_log:
             writer.add_scalar('Overall_Acc/train', score['Overall Acc'], epoch)
@@ -318,10 +339,10 @@ def train(devices=None, opts=None):
                     B_epoch = epoch
 
                 print("[{}] Epoch: {}/{} Loss: {:.8f}".format('Validate', epoch+1, opts.total_itrs, val_loss))
-                print("Overall Acc: {:.2f}, Mean Acc: {:.2f}, FreqW Acc: {:.2f}, Mean IoU: {:.2f}".format(
+                print(" Overall Acc: {:.2f}, Mean Acc: {:.2f}, FreqW Acc: {:.2f}, Mean IoU: {:.2f}".format(
                     val_score['Overall Acc'], val_score['Mean Acc'], val_score['FreqW Acc'], val_score['Mean IoU']))
-                print("Class IoU [0]: {:.2f} [1]: {:.2f}".format(val_score['Class IoU'][0], val_score['Class IoU'][1]))
-                print("F1 [0]: {:.2f} [1]: {:.2f}".format(val_score['Class F1'][0], val_score['Class F1'][1]))
+                print(" Class IoU [0]: {:.2f} [1]: {:.2f}".format(val_score['Class IoU'][0], val_score['Class IoU'][1]))
+                print(" F1 [0]: {:.2f} [1]: {:.2f}".format(val_score['Class F1'][0], val_score['Class F1'][1]))
                 
                 if opts.save_log:
                     writer.add_scalar('Overall_Acc/val', val_score['Overall Acc'], epoch)
@@ -342,8 +363,14 @@ def train(devices=None, opts=None):
             break
 
     if opts.save_last_results:
-        model.load_state_dict(torch.load(os.path.join(opts.save_ckpt, 'checkpoint.pt')))
-        save_val_image(opts, model, val_loader, devices, B_epoch)
+        if opts.save_model:
+            model.load_state_dict(torch.load(os.path.join(opts.save_ckpt, 'checkpoint.pt')))
+            save_val_image(opts, model, val_loader, devices, B_epoch)
+        else:
+            model.load_state_dict(torch.load(os.path.join(opts.save_ckpt, 'checkpoint.pt')))
+            save_val_image(opts, model, val_loader, devices, B_epoch)
+            os.remove(os.path.join(opts.save_ckpt, 'checkpoint.pt'))
+            os.rmdir(os.path.join(opts.save_ckpt))
 
 
     

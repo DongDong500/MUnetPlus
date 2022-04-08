@@ -106,26 +106,37 @@ if __name__ == '__main__':
 
     total_time = datetime.now()
     try:
-        for loss_name in ['ap_cross_entropy', 'cross_entropy', 'ap_entropy_dice_loss', 'entropy_dice_loss']:
-            for lr in [5e-4, 5e-3, 5e-2]:
-                
-                opts.current_time = datetime.now().strftime('%b%d_%H-%M-%S')
-                opts.loss_type = loss_name
+        for model_choice in ['deeplabv3_resnet101', 'deeplabv3_resnet50']:
+            for lr_policy_choice in ['poly', 'step']:
+                for loss_name in ['ap_cross_entropy', 'cross_entropy', 'ap_entropy_dice_loss', 'entropy_dice_loss']:
+                    for lr in [5e-2, 5e-3, 5e-4]:
+                        
+                        opts.model = model_choice
+                        opts.lr_policy = lr_policy_choice
+                        if lr_policy_choice == 'poly':
+                            lr = lr * 0.2
+                        if model_choice == 'deeplabv3_resnet101':
+                            opts.batch_size = 64
+                        else:
+                            opts.batch_size = 128
 
-                if loss_name == 'focal_loss':
-                    opts.lr = lr*1e+4
-                elif loss_name == 'entropy_dice_loss':
-                    opts.lr = lr
-                else:
-                    opts.lr = lr
+                        opts.current_time = datetime.now().strftime('%b%d_%H-%M-%S')
+                        opts.loss_type = loss_name
 
-                start_time = datetime.now()
-                train(devices=device, opts=opts)
-                time_elapsed = datetime.now() - start_time
+                        if loss_name == 'focal_loss':
+                            opts.lr = lr*1e+4
+                        elif loss_name == 'entropy_dice_loss':
+                            opts.lr = lr
+                        else:
+                            opts.lr = lr
 
-                logdir = os.path.join(opts.Tlog_dir, opts.model, opts.current_time + '_' + socket.gethostname())
-                with open(os.path.join(logdir, 'summary.txt'), 'a') as f:
-                    f.write('Time elapsed (h:m:s) {}'.format(time_elapsed))
+                        start_time = datetime.now()
+                        train(devices=device, opts=opts)
+                        time_elapsed = datetime.now() - start_time
+
+                        logdir = os.path.join(opts.Tlog_dir, opts.model, opts.current_time + '_' + socket.gethostname())
+                        with open(os.path.join(logdir, 'summary.txt'), 'a') as f:
+                            f.write('Time elapsed (h:m:s) {}'.format(time_elapsed))
 
     except KeyboardInterrupt:
         print("Stop !!!")
