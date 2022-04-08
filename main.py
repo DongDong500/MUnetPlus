@@ -64,8 +64,8 @@ def get_argparser():
     parser.add_argument("--lr_policy", type=str, default='step', choices=['poly', 'step'],
                         help="learning rate scheduler policy")
     parser.add_argument("--step_size", type=int, default=100)
-    parser.add_argument("--weight_decay", type=float, default=5e-1,
-                        help='weight decay (default: 5e-1)')
+    parser.add_argument("--weight_decay", type=float, default=5e-4,
+                        help='weight decay (default: 5e-4)')
     parser.add_argument("--momentum", type=float, default=0.9,
                         help='momentum (default: 0.9)')
 
@@ -108,13 +108,13 @@ if __name__ == '__main__':
     try:
         for model_choice in ['deeplabv3_resnet101', 'deeplabv3_resnet50']:
             for lr_policy_choice in ['poly', 'step']:
-                for loss_name in ['ap_cross_entropy', 'cross_entropy', 'ap_entropy_dice_loss', 'entropy_dice_loss']:
-                    for lr in [5e-2, 5e-3, 5e-4]:
+                for loss_name in ['cross_entropy', 'ap_cross_entropy', 'entropy_dice_loss', 'ap_entropy_dice_loss']:
+                    for lr in [1e-3, 1e-4, 1e-5]:
                         
                         opts.model = model_choice
                         opts.lr_policy = lr_policy_choice
                         if lr_policy_choice == 'poly':
-                            lr = lr * 0.2
+                            lr = lr
                         if model_choice == 'deeplabv3_resnet101':
                             opts.batch_size = 64
                         else:

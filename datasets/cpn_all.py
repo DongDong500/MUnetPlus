@@ -137,8 +137,8 @@ if __name__ == "__main__":
             et.ExtNormalize(mean=0.485, std=0.229)
             ])
     
-    dst = CPNALLSegmentation(root='/data/sdi/datasets', datatype='CPN_all', image_set='train',
-                                transform=transform, is_rgb=False)
+    dst = CPNALLSegmentation(root='/data/sdi/datasets', datatype='CPN_all', image_set='val',
+                                transform=transform, is_rgb=True)
     train_loader = DataLoader(dst, batch_size=16,
                                 shuffle=True, num_workers=2, drop_last=True)
     

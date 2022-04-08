@@ -129,16 +129,30 @@ def validate(opts, model, loader, device, metrics, epoch, criterion):
     running_loss = 0.0
     with torch.no_grad():
         for i, (images, labels) in tqdm(enumerate(loader)):
-            images = images.to(device, dtype=torch.float32)
-            labels = labels.to(device, dtype=torch.long)
+
+            images = images.to(device)
+            labels = labels.to(device)
 
             outputs = model(images)
             probs = nn.Softmax(dim=1)(outputs)
             preds = torch.max(probs, 1)[1].detach().cpu().numpy()
             target = labels.detach().cpu().numpy()
-            
+
+            if opts.loss_type == 'ap_cross_entropy':
+                weights = labels.detach().cpu().numpy().sum() / (labels.shape[0] * labels.shape[1] * labels.shape[2])
+                weights = torch.tensor([weights, 1-weights], dtype=float32).to(device)
+                criterion = utils.CrossEntropyLoss(weight=weights)
+                loss = criterion(outputs, labels)
+            elif opts.loss_type == 'ap_entropy_dice_loss':
+                weights = labels.detach().cpu().numpy().sum() / (labels.shape[0] * labels.shape[1] * labels.shape[2])
+                weights = torch.tensor([weights, 1-weights], dtype=float32).to(device)
+                criterion = utils.EntropyDiceLoss(weight=weights)
+                loss = criterion(outputs, labels)
+            else:
+                loss = criterion(outputs, labels)
+
             metrics.update(target, preds)
-            loss = criterion(outputs, labels)
+            #loss = criterion(outputs, labels)
             running_loss += loss.item() * images.size(0)
 
         if opts.save_val_results:
