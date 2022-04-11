@@ -67,7 +67,10 @@ def get_dataset(opts):
         val_dst = dt.CPNALLSegmentation(root=opts.data_root, datatype='CPN_all', image_set='val',
                                   transform=val_transform, is_rgb=opts.is_rgb)
     else:
-        raise NotImplementedError
+        train_dst = dt.CPNALLSegmentation(root=opts.data_root, datatype=opts.dataset, image_set='train',
+                                     transform=train_transform, is_rgb=opts.is_rgb)
+        val_dst = dt.CPNALLSegmentation(root=opts.data_root, datatype=opts.dataset, image_set='val',
+                                  transform=val_transform, is_rgb=opts.is_rgb)
     
     return train_dst, val_dst
 
@@ -109,7 +112,7 @@ def save_val_image(opts, model, loader, device, epoch):
             tar2 = (lbl[j] * 255).astype(np.uint8)
             tar3 = (preds[j] * 255).astype(np.uint8)
 
-            tar4 = (255 - (lbl[j] * 225 + preds[j] * 30)).astype(np.uint8)
+            tar4 = (255 - (lbl[j] * 160 + preds[j] * 95)).astype(np.uint8)
             #tar5 = ( (img + 0.2 * ( (255 - (preds[j] * 255).astype(np.float32)) )) / 1.2 ).astype(np.uint8)
 
             idx = str(i*images.shape[0] + j).zfill(3)
@@ -169,7 +172,7 @@ def train(devices=None, opts=None):
     if devices is None or opts is None:
         raise Exception
     
-    LOGDIR = os.path.join(opts.Tlog_dir, opts.model, opts.current_time+'_'+socket.gethostname())
+    LOGDIR = os.path.join(opts.Tlog_dir, opts.model, opts.current_time+'_'+opts.dataset)
     if not os.path.exists(LOGDIR):
         os.makedirs(LOGDIR)
     # Tensorboard 
@@ -276,6 +279,8 @@ def train(devices=None, opts=None):
     metrics = StreamSegMetrics(opts.num_classes)
     early_stopping = utils.EarlyStopping(patience=opts.step_size/opts.val_interval, verbose=True, 
                                             path=opts.save_ckpt, save_model=opts.save_model)
+    dice_stopping = utils.DiceStopping(patience=opts.step_size/opts.val_interval, verbose=True, 
+                                            path=opts.save_ckpt, save_model=opts.save_model)
     best_score = 0.0
 
     ''' (.) Data Parallel
@@ -287,6 +292,8 @@ def train(devices=None, opts=None):
     ''' (6) Train
     '''
     B_epoch = 0
+    B_val_score = None
+
     for epoch in range(resume_epoch, opts.total_itrs):
 
         model.train()
@@ -351,6 +358,8 @@ def train(devices=None, opts=None):
                                                 devices, metrics, epoch, criterion)
                 if early_stopping(val_loss, model):
                     B_epoch = epoch
+                if dice_stopping(val_score['Class F1'][1], model):
+                    B_val_score = val_score
 
                 print("[{}] Epoch: {}/{} Loss: {:.8f}".format('Validate', epoch+1, opts.total_itrs, val_loss))
                 print(" Overall Acc: {:.2f}, Mean Acc: {:.2f}, FreqW Acc: {:.2f}, Mean IoU: {:.2f}".format(
@@ -377,13 +386,21 @@ def train(devices=None, opts=None):
             break
 
     if opts.save_last_results:
+
+        with open(os.path.join(LOGDIR, 'summary.txt'), 'a') as f:
+            for k, v in B_val_score.items():
+                f.write("{} : {}\n".format(k, v))
+
         if opts.save_model:
             model.load_state_dict(torch.load(os.path.join(opts.save_ckpt, 'checkpoint.pt')))
             save_val_image(opts, model, val_loader, devices, B_epoch)
         else:
             model.load_state_dict(torch.load(os.path.join(opts.save_ckpt, 'checkpoint.pt')))
             save_val_image(opts, model, val_loader, devices, B_epoch)
-            os.remove(os.path.join(opts.save_ckpt, 'checkpoint.pt'))
+            if os.path.exists(os.path.join(opts.save_ckpt, 'checkpoint.pt')):
+                os.remove(os.path.join(opts.save_ckpt, 'checkpoint.pt'))
+            if os.path.exists(os.path.join(opts.save_ckpt, 'dicecheckpoint.pt')):
+                os.remove(os.path.join(opts.save_ckpt, 'dicecheckpoint.pt'))
             os.rmdir(os.path.join(opts.save_ckpt))
 
 

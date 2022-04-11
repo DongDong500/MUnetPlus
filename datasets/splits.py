@@ -1,5 +1,19 @@
 import os
 
+def check_validity(data_dir):
+
+    ims = os.listdir(data_dir)
+    mas = data_dir.splits('/')[:-2]
+    mas = os.path.join(mas, 'Masks')
+
+    if not os.path.exists(mas):
+        raise FileNotFoundError
+    
+    for fname in ims:
+        fname = fname.split('.')[0] + '_mask.' + fname.split('.')[-1]
+        if not (fname in mas):
+            raise FileNotFoundError 
+
 def split_dataset(splits_dir, data_dir, ratio=0.2):
 
     """

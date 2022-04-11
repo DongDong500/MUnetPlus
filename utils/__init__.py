@@ -1,4 +1,5 @@
 from .earlystop import EarlyStopping
+from .dicestop import DiceStopping
 from .utils import *
 from .scheduler import PolyLR
 

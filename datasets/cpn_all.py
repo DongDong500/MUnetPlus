@@ -137,16 +137,20 @@ if __name__ == "__main__":
             et.ExtNormalize(mean=0.485, std=0.229)
             ])
     
-    dst = CPNALLSegmentation(root='/data/sdi/datasets', datatype='CPN_all', image_set='val',
-                                transform=transform, is_rgb=True)
-    train_loader = DataLoader(dst, batch_size=16,
-                                shuffle=True, num_workers=2, drop_last=True)
-    
-    for i, (ims, lbls) in tqdm(enumerate(train_loader)):
-        print(ims.shape)
-        print(lbls.shape)
-        print(lbls.numpy().sum()/(lbls.shape[0] * lbls.shape[1] * lbls.shape[2]))
-        print(1 - lbls.numpy().sum()/(lbls.shape[0] * lbls.shape[1] * lbls.shape[2]))
-        if i > 1:
-            break
-    
+    dlist = ['CPN_FH', 'CPN_FN', 'CPN_FN+1', 'CPN_FN+2', 'CPN_FN+3', 'CPN_FN+4']
+
+    for j in dlist:
+            
+        dst = CPNALLSegmentation(root='/data/sdi/datasets', datatype=j, image_set='val',
+                                    transform=transform, is_rgb=True)
+        train_loader = DataLoader(dst, batch_size=5,
+                                    shuffle=True, num_workers=2, drop_last=True)
+        
+        for i, (ims, lbls) in tqdm(enumerate(train_loader)):
+            print(ims.shape)
+            print(lbls.shape)
+            print(lbls.numpy().sum()/(lbls.shape[0] * lbls.shape[1] * lbls.shape[2]))
+            print(1 - lbls.numpy().sum()/(lbls.shape[0] * lbls.shape[1] * lbls.shape[2]))
+            if i > 1:
+                break
+        
