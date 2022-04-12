@@ -38,7 +38,7 @@ class DiceStopping:
             return True
         elif score < self.best_score + self.delta:
             self.counter += 1
-            print(f'EarlyStopping counter: {self.counter} out of {self.patience}\n')
+            print(f'DiceEarlyStopping counter: {self.counter} out of {self.patience}\n')
             if self.counter >= self.patience:
                 self.early_stop = True
             return False
@@ -49,9 +49,9 @@ class DiceStopping:
             return True
 
     def save_checkpoint(self, val_loss, model):
-        '''validation loss가 감소하면 모델을 저장한다.'''
+        '''validation -F1 score 가 감소하면 모델을 저장한다.'''
         if self.verbose:
-            print(f'Validation loss decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}).')
+            print(f'Negative Dice score decreased ({self.val_loss_min:.6f} --> {val_loss:.6f}).')
         if self.save_model:
             print('Saving model ... \n {}\n'.format(self.path))
             torch.save(model.state_dict(), os.path.join(self.path, 'dicecheckpoint.pt'))

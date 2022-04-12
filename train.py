@@ -358,7 +358,7 @@ def train(devices=None, opts=None):
                                                 devices, metrics, epoch, criterion)
                 if early_stopping(val_loss, model):
                     B_epoch = epoch
-                if dice_stopping(val_score['Class F1'][1], model):
+                if dice_stopping(-1 * val_score['Class F1'][1], model):
                     B_val_score = val_score
 
                 print("[{}] Epoch: {}/{} Loss: {:.8f}".format('Validate', epoch+1, opts.total_itrs, val_loss))
