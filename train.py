@@ -20,7 +20,7 @@ import network
 import datasets as dt
 from metrics import StreamSegMetrics
 from utils import ext_transforms as et
-
+from utils import histeq as hq
 
 def get_dataset(opts):
     if opts.is_rgb:
