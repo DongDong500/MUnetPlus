@@ -106,15 +106,15 @@ if __name__ == '__main__':
     total_time = datetime.now()
     try:
         for lr_policy_choice in ['poly', 'step']:
-            for loss_name in ['entropy_dice_loss', 'ap_entropy_dice_loss', 'cross_entropy', 'ap_cross_entropy']:
-                for dset in ['CPN_FH', 'CPN_FN', 'CPN_FN+1', 'CPN_FN+2', 'CPN_FN+3', 'CPN_FN+4']:
+            for loss_name in ['dice_loss']:
+                for lr in [1e-3, 1e-4, 1e-5]:
                     
                     lr = 1e-5
                     model_choice = 'deeplabv3_resnet101'
 
                     opts.model = model_choice
                     opts.lr_policy = lr_policy_choice
-                    opts.dataset = dset
+                    opts.dataset = 'CPN_all'
 
                     if lr_policy_choice == 'poly':
                         lr = lr
@@ -142,3 +142,8 @@ if __name__ == '__main__':
     total_time = datetime.now() - total_time
 
     print('Time elapsed (h:m:s.ms) {}'.format(total_time))
+
+    from mail import MailSend
+
+    ms = MailSend(msg='Time elapsed (h:m:s.ms) {}'.format(total_time))
+    ms()
