@@ -167,7 +167,7 @@ def validate(opts, model, loader, device, metrics, epoch, criterion):
     return score, epoch_loss  
 
 
-def train(devices=None, opts=None):
+def train(devices=None, opts=None, REPORT=None):
 
     if devices is None or opts is None:
         raise Exception
@@ -390,6 +390,13 @@ def train(devices=None, opts=None):
         with open(os.path.join(LOGDIR, 'summary.txt'), 'a') as f:
             for k, v in B_val_score.items():
                 f.write("{} : {}\n".format(k, v))
+        
+        tmp = []
+        tmp.append("Model: {}, Datasets: {}".format(opts.model, opts.dataset))
+        tmp.append("loss: {}, lr: {}, policy: {}".format(opts.loss_type, opts.lr, opts.lr_policy))
+        tmp.append("Epoch [{}]: F1 [0]: {:.2f} [1]: {:.2f}".format(B_epoch, B_val_score['Class F1'][0], B_val_score['Class F1'][1]))
+        tmp.append("Class IoU [0]: {:.2f} [1]: {:.2f}".format(B_val_score['Class IoU'][0], B_val_score['Class IoU'][1]))
+        REPORT.append_msg(tmp)
 
         if opts.save_model:
             model.load_state_dict(torch.load(os.path.join(opts.save_ckpt, 'checkpoint.pt')))

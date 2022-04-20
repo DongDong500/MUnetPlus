@@ -2,10 +2,13 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
+from numpy import isin
+
 class MailSend(object):
 
     def __init__(self, from_addr: list = [], 
-                to_addr: list = [], 
+                to_addr: list = [],
+                subject: str = 'Testing Mail system ... Do Not reply',
                 msg: list = [], 
                 attach: list = []):
         """
@@ -17,6 +20,7 @@ class MailSend(object):
         """
         self.from_addr = from_addr
         self.to_addr = to_addr
+        self.subject = subject
         self.message = msg
         self.attach = attach
     
@@ -34,31 +38,35 @@ class MailSend(object):
         smtp.login('singkuserver', 'agcmvqybdqetmsef')
 
         msg = MIMEMultipart()
-        msg['Subject'] = 'Do Not reply'
-        msg.attach(MIMEText('Testing mail transfer system ... Learning is over\n', 'plain'))
+        msg['Subject'] = self.subject
+        msg.attach(MIMEText('Auto mail transfer system ... \n', 'plain'))
+        msg.attach(MIMEText('\nShort Reports \n', 'plain'))
+
         idx = 0
         for body in self.message:
-            idx += 1
-            msg.attach(MIMEText(str(idx) + '\n'))
-            msg.attach(MIMEText(str(body) + '\n', 'plain'))
-
-        #attachment = open('')
+            if isinstance(body, list):
+                idx += 1
+                msg.attach(MIMEText(str(idx) + '-th results\n', 'plain'))
+                for score in body:
+                    msg.attach(MIMEText('\t' + score + '\n', 'plain'))
+            elif isinstance(body, str):
+                msg.attach(MIMEText(body + '\n', 'plain'))
 
         smtp.sendmail(self.from_addr, self.to_addr, msg.as_string())
 
         smtp.quit()
-        print("Send Mail to {}".format(self.to_addr))
+        print("Sended Mail to {}".format(self.to_addr))
 
     def append_msg(self, msg):
+        if isinstance(msg, list):
+            self.message.append(msg)
+        else:
+            self.message.append(str(msg))
 
-        self.message.append(msg)
-    
     def append_from_addr(self, addr):
-
         self.from_addr.append(addr)
 
     def append_to_addr(self, addr):
-
         self.to_addr.append(addr)
 
 if __name__ == "__main__":
@@ -66,9 +74,10 @@ if __name__ == "__main__":
     ms = MailSend()
     sample = {"F1" : [0.1, 0.9],
                 "IoU" : [0.5, 0.4]}
-    ms.append_msg(sample)
-    ms.append_msg(sample)
-    ms.append_msg('Test append message func')
+
+    ms.append_msg('1 Test append message func')
+    ms.append_msg('2 Test append message func')
+    ms.append_msg('2 Test append message func {}'.format(3))
     ms.append_from_addr('doNotReply@gmail.com')
     ms.append_to_addr('sdimivy014@korea.ac.kr')
     ms.append_to_addr('sdimivy014@gmail.com')

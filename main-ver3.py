@@ -95,6 +95,9 @@ def get_argparser():
 
 if __name__ == '__main__':
 
+    from mail import MailSend
+    ms = MailSend(subject=" TBD subject ")
+
     opts = get_argparser().parse_args()
 
     os.environ['CUDA_DEVICE_ORDER'] = 'PCI_BUS_ID'
@@ -107,9 +110,8 @@ if __name__ == '__main__':
     try:
         for lr_policy_choice in ['poly', 'step']:
             for loss_name in ['dice_loss']:
-                for lr in [1e-3, 1e-4, 1e-5]:
+                for lr in [1e-3]:
                     
-                    lr = 1e-5
                     model_choice = 'deeplabv3_resnet101'
 
                     opts.model = model_choice
@@ -130,7 +132,7 @@ if __name__ == '__main__':
                         opts.lr = lr
 
                     start_time = datetime.now()
-                    train(devices=device, opts=opts)
+                    train(devices=device, opts=opts, REPORT=ms)
                     time_elapsed = datetime.now() - start_time
 
                     logdir = os.path.join(opts.Tlog_dir, opts.model, opts.current_time + '_' + opts.dataset)
@@ -142,8 +144,11 @@ if __name__ == '__main__':
     total_time = datetime.now() - total_time
 
     print('Time elapsed (h:m:s.ms) {}'.format(total_time))
+    
 
-    from mail import MailSend
+    ms.append_msg('Learning is over ... \n')
+    ms.append_msg('Time elapsed (h:m:s.ms) {}'.format(total_time))
 
-    ms = MailSend(msg='Time elapsed (h:m:s.ms) {}'.format(total_time))
+    ms.append_from_addr('doNotReply@gmail.com')
+    ms.append_to_addr('sdimivy014@korea.ac.kr')
     ms()
