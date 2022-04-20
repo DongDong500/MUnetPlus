@@ -67,9 +67,9 @@ def get_dataset(opts):
         val_dst = dt.CPNALLSegmentation(root=opts.data_root, datatype='CPN_all', image_set='val',
                                   transform=val_transform, is_rgb=opts.is_rgb)
     else:
-        train_dst = dt.CPNALLSegmentation(root=opts.data_root, datatype=opts.dataset, image_set='train',
+        train_dst = dt.CPN(root=opts.data_root, datatype=opts.dataset, image_set='train',
                                      transform=train_transform, is_rgb=opts.is_rgb)
-        val_dst = dt.CPNALLSegmentation(root=opts.data_root, datatype=opts.dataset, image_set='val',
+        val_dst = dt.CPN(root=opts.data_root, datatype=opts.dataset, image_set='val',
                                   transform=val_transform, is_rgb=opts.is_rgb)
     
     return train_dst, val_dst
@@ -131,7 +131,7 @@ def validate(opts, model, loader, device, metrics, epoch, criterion):
 
     running_loss = 0.0
     with torch.no_grad():
-        for i, (images, labels) in tqdm(enumerate(loader)):
+        for i, (images, labels) in enumerate(loader):
 
             images = images.to(device)
             labels = labels.to(device)
@@ -221,10 +221,15 @@ def train(devices=None, opts=None, REPORT=None):
     '''
     try:
         print("Model selection: {}".format(opts.model))
-        model = network.model.__dict__[opts.model](channel=3 if opts.is_rgb else 1, 
-                                                        num_classes=opts.num_classes)
-        if opts.model == 'deeplabv3_resnet50':
+        if opts.model.startswith("deeplab"):
+            model = network.model.__dict__[opts.model](channel=3 if opts.is_rgb else 1, 
+                                                        num_classes=opts.num_classes, output_stride=opts.output_stride)
+            if opts.separable_conv and 'plus' in opts.model:
+                network.convert_to_separable_conv(model.classifier)
             utils.set_bn_momentum(model.backbone, momentum=0.01)
+        else:
+            model = network.model.__dict__[opts.model](channel=3 if opts.is_rgb else 1, 
+                                                        num_classes=opts.num_classes)                            
     except:
         raise Exception
     
@@ -240,13 +245,13 @@ def train(devices=None, opts=None, REPORT=None):
     ''' (3) Set up criterion
     '''
     if opts.loss_type == 'cross_entropy':
-        criterion = utils.CrossEntropyLoss(weight=torch.tensor([0.02, 0.98]).to(devices))
+        criterion = utils.CrossEntropyLoss()
     elif opts.loss_type == 'focal_loss':
         criterion = utils.FocalLoss(gamma=2, alpha=torch.tensor([0.02, 0.98]).to(devices))
     elif opts.loss_type == 'dice_loss':
         criterion = utils.DiceLoss()
     elif opts.loss_type == 'entropy_dice_loss':
-        criterion = utils.EntropyDiceLoss(weight=torch.tensor([0.02, 0.98]).to(devices))
+        criterion = utils.EntropyDiceLoss()
     elif opts.loss_type == 'ap_cross_entropy':
         criterion = None
     elif opts.loss_type == 'ap_entropy_dice_loss':
@@ -256,7 +261,7 @@ def train(devices=None, opts=None, REPORT=None):
 
     ''' (4) Set up optimizer
     '''
-    if opts.model == 'deeplabv3_resnet50':
+    if opts.model.startswith("deeplab"):
         optimizer = torch.optim.SGD(params=[
         {'params': model.backbone.parameters(), 'lr': 0.1 * opts.lr},
         {'params': model.classifier.parameters(), 'lr': opts.lr},
@@ -277,9 +282,9 @@ def train(devices=None, opts=None, REPORT=None):
     ''' (5) Set up metrics
     '''
     metrics = StreamSegMetrics(opts.num_classes)
-    early_stopping = utils.EarlyStopping(patience=opts.step_size/opts.val_interval, verbose=True, 
+    early_stopping = utils.EarlyStopping(patience=opts.total_itrs * 0.1, verbose=True, 
                                             path=opts.save_ckpt, save_model=opts.save_model)
-    dice_stopping = utils.DiceStopping(patience=opts.step_size/opts.val_interval, verbose=True, 
+    dice_stopping = utils.DiceStopping(patience=opts.total_itrs * 0.1, verbose=True, 
                                             path=opts.save_ckpt, save_model=opts.save_model)
     best_score = 0.0
 
@@ -288,6 +293,20 @@ def train(devices=None, opts=None, REPORT=None):
     # Data Parallel Option
     if torch.cuda.device_count() > 1:
         model = nn.DataParallel(model)
+
+    ''' (.) Save best model
+    '''
+    def save_ckpt(path, cur_itrs):
+        """ save current model
+        """
+        torch.save({
+            "cur_itrs": cur_itrs,
+            "model_state": model.module.state_dict(),
+            "optimizer_state": optimizer.state_dict(),
+            "scheduler_state": scheduler.state_dict(),
+            "best_score": best_score,
+        }, path)
+        print("Model saved as %s" % path)    
 
     ''' (6) Train
     '''
@@ -351,15 +370,10 @@ def train(devices=None, opts=None, REPORT=None):
             writer.add_scalar('epoch_loss/train', epoch_loss, epoch)
         
         if (epoch+1) % opts.val_interval == 0:
-                print("validation...")
                 model.eval()
                 metrics.reset()
                 val_score, val_loss = validate(opts, model, val_loader, 
                                                 devices, metrics, epoch, criterion)
-                if early_stopping(val_loss, model):
-                    B_epoch = epoch
-                if dice_stopping(-1 * val_score['Class F1'][1], model):
-                    B_val_score = val_score
 
                 print("[{}] Epoch: {}/{} Loss: {:.8f}".format('Validate', epoch+1, opts.total_itrs, val_loss))
                 print(" Overall Acc: {:.2f}, Mean Acc: {:.2f}, FreqW Acc: {:.2f}, Mean IoU: {:.2f}".format(
@@ -367,6 +381,11 @@ def train(devices=None, opts=None, REPORT=None):
                 print(" Class IoU [0]: {:.2f} [1]: {:.2f}".format(val_score['Class IoU'][0], val_score['Class IoU'][1]))
                 print(" F1 [0]: {:.2f} [1]: {:.2f}".format(val_score['Class F1'][0], val_score['Class F1'][1]))
                 
+                if early_stopping(val_loss, model):
+                    B_epoch = epoch
+                if dice_stopping(-1 * val_score['Class F1'][1], model):
+                    B_val_score = val_score
+
                 if opts.save_log:
                     writer.add_scalar('Overall_Acc/val', val_score['Overall Acc'], epoch)
                     writer.add_scalar('Mean_Acc/val', val_score['Mean Acc'], epoch)
@@ -385,32 +404,32 @@ def train(devices=None, opts=None, REPORT=None):
         if opts.run_demo and epoch > 3:
             break
 
-    if opts.save_last_results:
+    tmp = []
+    tmp.append("Model: {}, Datasets: {}".format(opts.model, opts.dataset))
+    tmp.append("loss: {}, policy: {} lr: {}, os: {}".format(opts.loss_type, opts.lr_policy, 
+                                                                opts.lr, opts.output_stride))
+    tmp.append("Epoch [{}]".format(B_epoch))
+    tmp.append("F1 \t\t [0]: {:.2f} [1]: {:.2f}".format(B_val_score['Class F1'][0], 
+                                                            B_val_score['Class F1'][1]))
+    tmp.append("Class IoU \t [0]: {:.2f} [1]: {:.2f}".format(B_val_score['Class IoU'][0], 
+                                                                B_val_score['Class IoU'][1]))
+    REPORT.append_msg(tmp)
 
+    if opts.save_last_results:
         with open(os.path.join(LOGDIR, 'summary.txt'), 'a') as f:
             for k, v in B_val_score.items():
                 f.write("{} : {}\n".format(k, v))
-        
-        tmp = []
-        tmp.append("Model: {}, Datasets: {}".format(opts.model, opts.dataset))
-        tmp.append("loss: {}, lr: {}, policy: {}".format(opts.loss_type, opts.lr, opts.lr_policy))
-        tmp.append("Epoch [{}]: F1 [0]: {:.2f} [1]: {:.2f}".format(B_epoch, B_val_score['Class F1'][0], B_val_score['Class F1'][1]))
-        tmp.append("Class IoU [0]: {:.2f} [1]: {:.2f}".format(B_val_score['Class IoU'][0], B_val_score['Class IoU'][1]))
-        REPORT.append_msg(tmp)
 
         if opts.save_model:
-            model.load_state_dict(torch.load(os.path.join(opts.save_ckpt, 'checkpoint.pt')))
+            model.load_state_dict(torch.load(os.path.join(opts.save_ckpt, 'dicecheckpoint.pt')))
             save_val_image(opts, model, val_loader, devices, B_epoch)
+            if os.path.exists(os.path.join(opts.save_ckpt, 'dicecheckpoint.pt')):
+                os.remove(os.path.join(opts.save_ckpt, 'dicecheckpoint.pt'))
         else:
-            model.load_state_dict(torch.load(os.path.join(opts.save_ckpt, 'checkpoint.pt')))
+            model.load_state_dict(torch.load(os.path.join(opts.save_ckpt, 'dicecheckpoint.pt')))
             save_val_image(opts, model, val_loader, devices, B_epoch)
             if os.path.exists(os.path.join(opts.save_ckpt, 'checkpoint.pt')):
                 os.remove(os.path.join(opts.save_ckpt, 'checkpoint.pt'))
             if os.path.exists(os.path.join(opts.save_ckpt, 'dicecheckpoint.pt')):
                 os.remove(os.path.join(opts.save_ckpt, 'dicecheckpoint.pt'))
-            os.rmdir(os.path.join(opts.save_ckpt))
-
-
-    
-
-    
+            os.rmdir(os.path.join(opts.save_ckpt))    
