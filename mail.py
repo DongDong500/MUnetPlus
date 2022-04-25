@@ -69,6 +69,9 @@ class MailSend(object):
     def append_to_addr(self, addr):
         self.to_addr.append(addr)
 
+    def reset(self):
+        self.message = []
+
 if __name__ == "__main__":
 
     ms = MailSend()

@@ -1,3 +1,4 @@
+from json import load
 import os
 import argparse
 
@@ -113,13 +114,19 @@ if __name__ == '__main__':
     try:
         for loss_choice in ['dice_loss', 'ap_entropy_dice_loss', 'entropy_dice_loss', 
                                 'ap_cross_entropy', 'cross_entropy', 'focal_loss']:
-
+            
+            if loss_choice == 'dice_loss' or loss_choice == 'ap_entropy_dice_loss':
+                continue
+            
             from mail import MailSend
             ms = MailSend(subject="DeeplabV3Plus {}".format(loss_choice))
             mid_time = datetime.now()
 
             for model_choice in ['deeplabv3plus_resnet101', 'deeplabv3plus_resnet50']:
                 for output_stride_choice in [8, 16, 32, 64]:
+                    if model_choice == 'deeplabv3plus_resnet101' and output_stride_choice == 8:
+                        continue
+
                     opts.loss_type = loss_choice
                     opts.model = model_choice
                     opts.output_stride = output_stride_choice
@@ -138,7 +145,9 @@ if __name__ == '__main__':
 
             ms.append_from_addr('doNotReply@gmail.com')
             ms.append_to_addr('sdimivy014@korea.ac.kr')
-            ms()            
+            ms()
+            ms.reset()
+            
     except KeyboardInterrupt:
         print("Stop !!!")
     total_time = datetime.now() - total_time
